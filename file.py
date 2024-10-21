@@ -61,7 +61,7 @@ def process_images_in_directory(folder_path, final_folder_base, thumbnail_folder
         return
 
     # Use ThreadPoolExecutor for multithreading
-    num_workers = 3  # Number of threads
+    num_workers = 1  # Number of threads
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
         futures = []
         for index, filename in enumerate(files):
@@ -118,7 +118,7 @@ def process_multiple_folders(input_base_path, output_base_path, client_code, db_
     # Once all files are processed, call the completion function
     processing_completed(client_code, processed_files_ref[0], db_operations)
 
-# Measure time taken for processing
+
 if __name__ == "__main__":
     start_time = time.time()
 
@@ -132,12 +132,18 @@ if __name__ == "__main__":
     # Specify the client code
     client_code = 'HWW80'  # Replace with your actual client code
 
+    ABSOLUTE= '/var/www/receiver'
+
+    # Define absolute paths as variables
+    input_path = f"{ABSOLUTE}/optimized{client_code}"  
+    output_path = f"{ABSOLUTE}/final/{client_code}"  
+
     # Fetch data to ensure the processing should start
     data_to_process = db_operations.fetch_data(client_code)
 
     if data_to_process:
-        # Process all folders within the input directory
-        process_multiple_folders(f"input/{client_code}", f"output/{client_code}", client_code, db_operations)
+        # Process all folders within the input directory using absolute paths
+        process_multiple_folders(input_path, output_path, client_code, db_operations)
     else:
         logging.info(f"No queued data found for clientId {client_code}.")
 
