@@ -4,6 +4,16 @@ import logging
 import concurrent.futures
 import time
 from databases import MongoDBOperations  # Import your MongoDB operations class
+from dotenv import load_dotenv
+
+load_dotenv()
+
+MONGO_URI = os.getenv('MONGO_URI')
+INPUT_PATH = os.getenv('INPUT_PATH')
+OUTPUT_PATH = os.getenv('OUTPUT_PATH')
+DATABASE = os.getenv('DATABASE_NAME')
+TABLE = os.getenv('TABLE_NAME')
+WORKER = os.getenv('WORKER')
 
 # Setup basic logging
 logging.basicConfig(level=logging.INFO)
@@ -61,7 +71,7 @@ def process_images_in_directory(folder_path, final_folder_base, thumbnail_folder
         return
 
     # Use ThreadPoolExecutor for multithreading
-    num_workers = 1  # Number of threads
+    num_workers = WORKER  
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
         futures = []
         for index, filename in enumerate(files):
@@ -123,30 +133,35 @@ if __name__ == "__main__":
     start_time = time.time()
 
     # Set database name and collection name
-    db_name = "test"  # Replace with your database name
-    collection_name = "services"  # Replace with your collection name
+    db_name = DATABASE  
+    collection_name = TABLE 
 
     # Create MongoDB operations instance
     db_operations = MongoDBOperations(db_name, collection_name)
-
-    # Specify the client code
-    client_code = 'HWW80'  # Replace with your actual client code
-
-    ABSOLUTE= '/var/www/receiver'
-
-    # Define absolute paths as variables
-    input_path = f"{ABSOLUTE}/optimized{client_code}"  
-    output_path = f"{ABSOLUTE}/final/{client_code}"  
+    
 
     # Fetch data to ensure the processing should start
-    data_to_process = db_operations.fetch_data(client_code)
+    check_if_already_processing = db_operations.check_if_processing()
 
-    if data_to_process:
-        # Process all folders within the input directory using absolute paths
-        process_multiple_folders(input_path, output_path, client_code, db_operations)
-    else:
-        logging.info(f"No queued data found for clientId {client_code}.")
+    if check_if_already_processing: 
+        logging.info(f"Already processing {check_if_already_processing['clientId']}.")
+        
+    else: 
 
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    logging.info(f"Time Taken: {elapsed_time:.2f} seconds")
+        # Fetch data to ensure the processing should start
+        data_to_process = db_operations.fetch_data()
+        client_code = data_to_process['clientId']
+
+        if data_to_process:
+
+            # Define absolute paths as variables
+            input_path = f"{INPUT_PATH}{client_code}"
+            output_path = f"{OUTPUT_PATH}{client_code}"
+            # Process all folders within the input directory using absolute paths
+            process_multiple_folders(input_path, output_path, client_code, db_operations)
+        else:
+            logging.info(f"No queued data found for clientId {client_code}.")
+
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        logging.info(f"Time Taken: {elapsed_time:.2f} seconds")

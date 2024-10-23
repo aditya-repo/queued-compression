@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-MONGO_URI = os.getenv('SECRET_KEY')
+MONGO_URI = os.getenv('MONGO_URI')
 # Setup basic logging
 logging.basicConfig(level=logging.INFO)
 
@@ -15,15 +15,33 @@ class MongoDBOperations:
         self.db = self.client[db_name]
         self.collection = self.db[collection_name]
 
-    def fetch_data(self, client_id):
-        """Fetch data based on specific conditions."""
-        data = self.collection.find(
+    def check_if_processing(self):
+        """Fetch clientId based on specific conditions."""
+        data = self.collection.find_one(
             {
-                "clientId": client_id,
-                "status": {"$in": ["queued", "processing"]}  # Fetch where status is queued or processing
+                "status": {"$in": ["processing"]}
+            },
+            {
+                "clientId": 1,  # Only include the clientId field in the result
+                "_id": 0        # Exclude the default _id field from the result
             }
-        ).sort("queuedtime", pymongo.ASCENDING)  # Sort by queuedtime ascending
-        return list(data)  # Return as a list
+        )
+
+        return data  
+    
+    def fetch_data(self):
+        """Fetch clientId based on specific conditions."""
+        data = self.collection.find_one(
+            {
+                "status": {"$in": ["queued"]}
+            },
+            {
+                "clientId": 1,  # Only include the clientId field in the result
+                "_id": 0        # Exclude the default _id field from the result
+            }
+        )
+
+        return data  
 
     def update_status(self, client_code, total_files, processed_files):
         """Update the status and file counts in the database."""
@@ -47,9 +65,10 @@ class MongoDBOperations:
             {
                 "$set": {
                     "processedfile": total_processed,
-                    "status": "completed"
+                    "status": "cdn-queued"
                 }
             }
         )
+        
         if result.modified_count == 0:
             logging.warning(f"No documents were finalized for clientId {client_code}.")
